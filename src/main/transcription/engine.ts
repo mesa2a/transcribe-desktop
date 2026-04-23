@@ -44,7 +44,7 @@ class WhisperEngine {
     const libVariant = settings.useGpu ? settings.gpuBackend : 'default'
 
     this.ctx = (await initWhisper(
-      { model: modelPath, useGpu: settings.useGpu, nThreads: 4 },
+      { filePath: modelPath, useGpu: settings.useGpu, nThreads: 4 },
       libVariant
     )) as WhisperContext
 
