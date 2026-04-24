@@ -8,7 +8,8 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "package": "electron-vite build && electron-builder --win --x64",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "electron-rebuild"
   },
   "dependencies": {
     "@fugood/whisper.node": "^1.0.16",

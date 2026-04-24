@@ -43,8 +43,13 @@ class WhisperEngine {
     const modelPath = path.join(app.getPath('userData'), 'models', `ggml-${settings.modelName}.bin`)
     const libVariant = settings.useGpu ? settings.gpuBackend : 'default'
 
+    // CPU スレッド数を自動検出（論理コア数の75%を使用）
+    const os = await import('node:os')
+    const cpuCount = os.cpus().length
+    const optimalThreads = Math.max(4, Math.floor(cpuCount * 0.75))
+
     this.ctx = (await initWhisper(
-      { filePath: modelPath, useGpu: settings.useGpu, nThreads: 4 },
+      { filePath: modelPath, useGpu: settings.useGpu, nThreads: optimalThreads },
       libVariant
     )) as WhisperContext
 
@@ -69,13 +74,33 @@ class WhisperEngine {
       i16[i] = s < 0 ? s * 0x8000 : s * 0x7fff
     }
 
+    // 推論時のスレッド数も最適化
+    const os = await import('node:os')
+    const cpuCount = os.cpus().length
+    const optimalThreads = Math.max(4, Math.floor(cpuCount * 0.75))
+
     const { promise } = this.ctx.transcribeData(i16.buffer, {
       language: opts.language === 'auto' ? undefined : opts.language,
       temperature: 0.0,
-      nThreads: 4
+      nThreads: optimalThreads
     })
-    const { result } = await promise
-    return result
+    const response = await promise
+    // console.log('[transcribe] response:', JSON.stringify(response, null, 2))
+
+    // segments 配列を返す（result は文字列の全体テキスト）
+    if (response.segments && Array.isArray(response.segments)) {
+      return response.segments.map((seg: { text: string; t0: number; t1: number }) => ({
+        text: seg.text,
+        t0: seg.t0,
+        t1: seg.t1
+      }))
+    } else if (typeof response.result === 'string') {
+      // segments がない場合は result 文字列を使用
+      return [{ text: response.result, t0: 0, t1: 0 }]
+    } else {
+      console.error('[transcribe] unexpected result format:', response)
+      return []
+    }
   }
 
   async shutdown() {

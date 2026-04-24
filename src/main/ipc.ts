@@ -42,9 +42,11 @@ export function registerIpc(getWin: () => BrowserWindow | null) {
   // -------- 音声チャンク --------
   ipcMain.handle(
     'audio:push',
-    async (_e, sessionId: number, pcm: Float32Array) => {
+    async (_e, sessionId: number, pcm: number[] | Float32Array) => {
+      // IPC経由だと Float32Array が通常の配列になることがあるので変換
+      const float32 = pcm instanceof Float32Array ? pcm : new Float32Array(pcm)
       const stream = getStreamingSession(sessionId)
-      await stream.push(pcm)
+      await stream.push(float32)
     }
   )
 

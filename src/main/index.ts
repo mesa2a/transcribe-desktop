@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell, session } from 'electron'
 import path from 'node:path'
 import { registerIpc } from './ipc'
 import { initDb } from './db'
@@ -38,6 +38,17 @@ async function createWindow() {
 app.whenReady().then(async () => {
   initDb()
   registerIpc(() => mainWindow)
+
+  // マイク・カメラのアクセス許可を自動で承認
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'microphone']
+    if (allowedPermissions.includes(permission)) {
+      callback(true)
+    } else {
+      callback(false)
+    }
+  })
+
   await createWindow()
 
   app.on('activate', () => {

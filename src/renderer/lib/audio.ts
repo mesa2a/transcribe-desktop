@@ -15,15 +15,30 @@ export class AudioCapture {
   ) {}
 
   async start(deviceId: string | null) {
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        deviceId: deviceId ? { exact: deviceId } : undefined,
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          deviceId: deviceId ? { ideal: deviceId } : undefined,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      })
+    } catch (err) {
+      const error = err as Error
+      if (error.name === 'NotAllowedError') {
+        throw new Error('マイクへのアクセスが拒否されました。ブラウザの設定でマイクの使用を許可してください。')
+      } else if (error.name === 'NotFoundError') {
+        throw new Error('マイクが見つかりません。デバイスが接続されているか確認してください。')
+      } else if (error.name === 'NotReadableError') {
+        throw new Error('マイクが使用中です。他のアプリケーションで使用されていないか確認してください。')
+      } else if (error.name === 'OverconstrainedError') {
+        throw new Error('指定されたマイクデバイスが見つかりません。設定を確認してください。')
+      } else {
+        throw new Error(`マイクの初期化に失敗しました: ${error.message}`)
       }
-    })
+    }
 
     // AudioContext は 48000 Hz になることが多いが、Worklet 側で 16000 にダウンサンプルする
     this.ctx = new AudioContext({ latencyHint: 'interactive' })
@@ -43,7 +58,8 @@ export class AudioCapture {
       if (this.onLevel) {
         let sum = 0
         for (let i = 0; i < pcm.length; i++) sum += pcm[i] * pcm[i]
-        this.onLevel(Math.sqrt(sum / pcm.length))
+        const rms = Math.sqrt(sum / pcm.length)
+        this.onLevel(rms)
       }
       // IPC へ（Electron の IPC は構造化クローンされるのでそのまま渡せる）
       api.pushAudioChunk(this.sessionId, pcm).catch((e) =>

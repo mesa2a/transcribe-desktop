@@ -3,7 +3,7 @@ import type { AppSettings } from '../shared/types'
 
 const defaults: AppSettings = {
   modelName: 'base',
-  language: 'auto',
+  language: 'ja',
   useGpu: true,
   gpuBackend: 'vulkan',
   vadThreshold: 0.5,

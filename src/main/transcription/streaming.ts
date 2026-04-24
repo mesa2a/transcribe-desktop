@@ -14,10 +14,10 @@ import type { FinalResult, PartialResult } from '../../shared/types'
 // 本気の実装では Silero VAD（ONNX）を使うべき。MVP としては RMS で十分実用になる。
 
 const SAMPLE_RATE = 16000
-const WINDOW_MS = 30_000 // 最大スライディングウィンドウ（whisper の基本長）
-const PARTIAL_INTERVAL_MS = 800 // partial を出す間隔
-const SILENCE_FINALIZE_MS = 700 // これだけ無音が続いたら確定
-const MIN_UTTERANCE_MS = 400 // 最低発話長
+const WINDOW_MS = 8_000 // 最大スライディングウィンドウ（8秒に短縮）
+const PARTIAL_INTERVAL_MS = 1200 // partial を出す間隔（少し長めに）
+const SILENCE_FINALIZE_MS = 400 // これだけ無音が続いたら確定（さらに短縮）
+const MIN_UTTERANCE_MS = 250 // 最低発話長（さらに短縮）
 
 type StreamEvents = {
   partial: (r: PartialResult) => void
@@ -92,7 +92,9 @@ export class StreamingSession extends EventEmitter {
         language: getConfig().language
       })
       const text = results.map((r) => r.text).join('').trim()
-      if (!text) return
+
+      // フィルタリング: BLANK_AUDIO や一般的な幻覚フレーズを除外
+      if (!text || isHallucination(text)) return
 
       this.emit('partial', {
         sessionId: this.sessionId,
@@ -114,7 +116,9 @@ export class StreamingSession extends EventEmitter {
         language: getConfig().language
       })
       const text = results.map((r) => r.text).join('').trim()
-      if (!text) return
+
+      // フィルタリング: BLANK_AUDIO や一般的な幻覚フレーズを除外
+      if (!text || isHallucination(text)) return
 
       const speakerId = getConfig().enableDiarization
         ? this.diar.assign(this.buffer, startMs, endMs)
@@ -161,6 +165,42 @@ function calcRms(buf: Float32Array): number {
   let sum = 0
   for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i]
   return Math.sqrt(sum / buf.length)
+}
+
+/** Whisper の一般的な幻覚フレーズを検出 */
+function isHallucination(text: string): boolean {
+  const normalized = text.toLowerCase().replace(/[^\w\s]/g, '')
+
+  // 一般的な幻覚フレーズ（日本語・英語）
+  const hallucinationPatterns = [
+    'blank_audio',
+    'ご視聴ありがとう',
+    'また次の動画',
+    'チャンネル登録',
+    'high subscri',
+    'like and subscri',
+    'thanks for watching',
+    'see you next time',
+    '字幕',
+    'サブタイトル',
+    '音楽',
+    '拍手',
+    '笑',
+    'ブルー',
+    'パッパッ',
+    // 短すぎるノイズ
+    /^[^\w]{1,3}$/
+  ]
+
+  for (const pattern of hallucinationPatterns) {
+    if (pattern instanceof RegExp) {
+      if (pattern.test(normalized)) return true
+    } else if (normalized.includes(pattern)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 // セッション ID → インスタンスの簡易レジストリ

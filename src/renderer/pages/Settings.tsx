@@ -49,13 +49,16 @@ export default function Settings() {
             className="bg-neutral-900 border border-neutral-800 rounded px-3 py-1.5 text-sm"
           >
             <option value="tiny">tiny (39MB, 最速/精度低)</option>
-            <option value="base">base (74MB, バランス型)</option>
-            <option value="small">small (244MB)</option>
+            <option value="base">base (74MB, 開発用)</option>
+            <option value="small">small (244MB, 推奨)</option>
             <option value="medium">medium (769MB)</option>
-            <option value="large-v3">large-v3 (1.5GB, 高精度)</option>
-            <option value="large-v3-turbo">large-v3-turbo (809MB, 高精度で高速)</option>
+            <option value="large-v3">large-v3 (1.5GB, 最高精度)</option>
+            <option value="large-v3-turbo">large-v3-turbo (809MB, 高精度・高速)</option>
           </select>
         </Row>
+        <p className="text-xs text-neutral-500 -mt-2">
+          💡 日本語には small 以上を推奨。ハイスペックPC + GPU なら large-v3-turbo が最適
+        </p>
         <Row label="言語">
           <select
             value={s.language}
