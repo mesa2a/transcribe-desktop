@@ -51,20 +51,36 @@ export function registerIpc(getWin: () => BrowserWindow | null) {
   )
 
   // -------- DB --------
-  ipcMain.handle('db:sessions', () =>
-    db.prepare(`SELECT * FROM sessions ORDER BY started_at DESC`).all()
-  )
+  ipcMain.handle('db:sessions', () => {
+    const rows = db.prepare(`SELECT * FROM sessions ORDER BY started_at DESC`).all() as any[]
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      startedAt: r.started_at,
+      endedAt: r.ended_at,
+      durationMs: r.duration_ms,
+      language: r.language
+    }))
+  })
 
-  ipcMain.handle('db:segments', (_e, sessionId: number) =>
-    db
-      .prepare(
-        `SELECT * FROM segments WHERE session_id = ? ORDER BY start_ms ASC`
-      )
-      .all(sessionId)
-  )
+  ipcMain.handle('db:segments', (_e, sessionId: number) => {
+    const rows = db
+      .prepare(`SELECT * FROM segments WHERE session_id = ? ORDER BY start_ms ASC`)
+      .all(sessionId) as any[]
+    return rows.map((r) => ({
+      id: r.id,
+      sessionId: r.session_id,
+      speakerId: r.speaker_id,
+      startMs: r.start_ms,
+      endMs: r.end_ms,
+      text: r.text,
+      isFinal: Boolean(r.is_final),
+      createdAt: r.created_at
+    }))
+  })
 
-  ipcMain.handle('db:search', (_e, query: string) =>
-    db
+  ipcMain.handle('db:search', (_e, query: string) => {
+    const rows = db
       .prepare(
         `SELECT s.*, ses.title as sessionTitle
          FROM segments s
@@ -74,8 +90,19 @@ export function registerIpc(getWin: () => BrowserWindow | null) {
          ORDER BY s.created_at DESC
          LIMIT 200`
       )
-      .all(query)
-  )
+      .all(query) as any[]
+    return rows.map((r) => ({
+      id: r.id,
+      sessionId: r.session_id,
+      speakerId: r.speaker_id,
+      startMs: r.start_ms,
+      endMs: r.end_ms,
+      text: r.text,
+      isFinal: Boolean(r.is_final),
+      createdAt: r.created_at,
+      sessionTitle: r.sessionTitle
+    }))
+  })
 
   ipcMain.handle('db:delete-session', (_e, sessionId: number) => {
     db.prepare(`DELETE FROM sessions WHERE id = ?`).run(sessionId)

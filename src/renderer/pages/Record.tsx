@@ -14,18 +14,26 @@ export default function Record() {
   const captureRef = useRef<AudioCapture | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
-  // 結果購読
+  // 結果購読（セッションIDが変わったらリセット）
   useEffect(() => {
-    const offP = api.onPartial((r) => setPartial(r))
+    const offP = api.onPartial((r) => {
+      // 現在のセッションの結果のみ表示
+      if (r.sessionId === sessionId) {
+        setPartial(r)
+      }
+    })
     const offF = api.onFinal((r) => {
-      setFinals((prev) => [...prev, r])
-      setPartial(null)
+      // 現在のセッションの結果のみ表示
+      if (r.sessionId === sessionId) {
+        setFinals((prev) => [...prev, r])
+        setPartial(null)
+      }
     })
     return () => {
       offP()
       offF()
     }
-  }, [])
+  }, [sessionId])
 
   // 自動スクロール
   useEffect(() => {
@@ -55,6 +63,7 @@ export default function Record() {
     await api.stopSession(sessionId)
     setSessionId(null)
     setPartial(null)
+    setFinals([]) // 表示をクリア
     setLevel(0)
   }
 

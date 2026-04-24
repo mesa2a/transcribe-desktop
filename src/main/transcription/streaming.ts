@@ -62,7 +62,10 @@ export class StreamingSession extends EventEmitter {
     // VAD
     const nowMs = Date.now() - this.startEpoch
     const rms = calcRms(pcm)
-    const voiceActive = rms > 0.01 // 閾値は設定化するのが望ましい
+    const vadThreshold = getConfig().vadThreshold || 0.5
+    // 閾値をスケーリング（0.5 → 0.02の範囲）
+    const threshold = 0.01 + (vadThreshold * 0.02)
+    const voiceActive = rms > threshold
     if (voiceActive) {
       this.lastVoiceAt = nowMs
       if (!this.inUtterance) {
@@ -189,7 +192,9 @@ function isHallucination(text: string): boolean {
     'ブルー',
     'パッパッ',
     // 短すぎるノイズ
-    /^[^\w]{1,3}$/
+    /^[^\w]{1,3}$/,
+    // 単一の短い相槌の繰り返し
+    /^(はい|うん|ええ|あ|お){1,3}$/
   ]
 
   for (const pattern of hallucinationPatterns) {
@@ -198,6 +203,14 @@ function isHallucination(text: string): boolean {
     } else if (normalized.includes(pattern)) {
       return true
     }
+  }
+
+  // テキストが短すぎる（5文字以下）かつ、同じ文字の繰り返しが多い場合
+  if (text.length <= 5) {
+    const chars = text.split('')
+    const uniqueChars = new Set(chars)
+    // ユニーク文字が2種類以下なら幻覚と判定
+    if (uniqueChars.size <= 2) return true
   }
 
   return false
